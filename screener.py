@@ -5,9 +5,9 @@ import pygame
 import datetime
 from fetcher import fetch_binance_ohlc
 from config import LAYER1_COINS
-from strategy import get_easy_signal
-from indicators import add_ll_indicators
+from indicators import add_indicators
 from slack_api import send_slack_alert
+from strategy import apply_strategy
 
 WIDTH, HEIGHT = 600, 400
 WHITE = (255, 255, 255)
@@ -21,8 +21,13 @@ def run_screener(screen):
 
     last_run = None
     next_run = None
+    in_position = False
+    holding_symbol = None
+    entry_price = 0
 
     def fetch_and_process(screen_obj):
+        nonlocal in_position, holding_symbol, entry_price
+
         last_run = datetime.datetime.now()
         next_run = (last_run + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         if next_run <= last_run:
@@ -40,24 +45,37 @@ def run_screener(screen):
                 draw_candlestick_chart(screen_obj, df, symbol)
                 pygame.display.flip()
 
-                df = add_ll_indicators(df)
-                signal = get_easy_signal(df, len(df) - 1)
+                df = add_indicators(df)
+                df = apply_strategy(df)
+
+                signal = df["signal"].iloc[-1]
+                price = df["close"].iloc[-1]
                 volatility = df["high"].iloc[-1] - df["low"].iloc[-1]
 
-                if signal == "BUY":
-                    candidate_entries.append((symbol, volatility, df["close"].iloc[-1]))
+                if in_position:
+                    if symbol == holding_symbol and signal == "SELL":
+                        send_slack_alert(f"🔻 SELL: {symbol} at {price}")
+                        in_position = False
+                        holding_symbol = None
+                        entry_price = 0
+                else:
+                    if signal == "BUY":
+                        candidate_entries.append((symbol, volatility, price))
 
             except Exception as e:
                 print(f"[ERROR] {symbol}: {e}")
 
-        if candidate_entries:
-            best = max(candidate_entries, key=lambda x: x[1])  # Highest volatility
+        if not in_position and candidate_entries:
+            best = max(candidate_entries, key=lambda x: x[1])
             symbol, vol, price = best
-            send_slack_alert(f"💡 {symbol} generated a BUY signal, price={price})")
+            send_slack_alert(f"💡 BUY: {symbol} at {price} (volatility: {vol:.2f})")
+            in_position = True
+            holding_symbol = symbol
+            entry_price = price
 
         return last_run, next_run
 
-    last_run, next_run = fetch_and_process(screen)  # Initial run
+    last_run, next_run = fetch_and_process(screen)
 
     while True:
         for event in pygame.event.get():
@@ -70,7 +88,6 @@ def run_screener(screen):
             last_run = now
             next_run = last_run.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
 
-        # draw countdown bar
         total_seconds = (next_run - last_run).total_seconds()
         progress_ratio = 1 - min(max(total_seconds / 3600, 0), 1)
 

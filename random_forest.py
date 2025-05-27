@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 import os
 import pygame
-from indicators import add_ll_indicators
+from indicators import add_indicators
 from fetcher import load_backtest_data
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.model_selection import train_test_split
@@ -36,7 +36,7 @@ class RandomForestSignalClassifier:
 
     def prepare_data(self, df):
         # Apply all indicators and drop incomplete rows
-        df = add_ll_indicators(df)
+        df = add_indicators(df)
         df = df.dropna().copy()
 
         # Initialize target labels
