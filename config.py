@@ -25,7 +25,8 @@ LAYER1_COINS = {
     "thorchain": "RUNE",
     "mina-protocol": "MINA"
 }
-
+BINANCE_KEY = "8ETWjaWSIyMOydI3lGmql9fj9QlPTYV3ZDcqcLtLiDdSPWwkNz1UWgV9PXW1FuVK"
+BINANCE_SECRET = "JKnCRJzUZCCvpkkc8crKrUzTPHeY3GuCFGohglJZY71BuSyr1QwLShznMDu0OIes"
 VS_CURRENCY = "usd"
 HISTORICAL_DAYS = 90
 DATA_FOLDER = "data"

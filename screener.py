@@ -7,6 +7,7 @@ from fetcher import fetch_binance_ohlc
 from config import LAYER1_COINS
 from indicators import add_indicators
 from slack_api import send_slack_alert
+from trader import exit_trade, enter_trade, get_balance
 from strategy import apply_strategy
 
 WIDTH, HEIGHT = 600, 400
@@ -18,7 +19,7 @@ def run_screener(screen):
     pygame.display.set_caption("Crypto Screener")
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", 24)
-
+    starting_balance = get_balance()
     last_run = None
     next_run = None
     in_position = False
@@ -54,10 +55,14 @@ def run_screener(screen):
 
                 if in_position:
                     if symbol == holding_symbol and signal == "SELL":
+                        exit_trade(symbol)
                         send_slack_alert(f"🔻 SELL: {symbol} at {price}")
                         in_position = False
                         holding_symbol = None
                         entry_price = 0
+                        current_balance = get_balance()
+                        change = (current_balance-starting_balance)/starting_balance
+                        print(f"Current P/L: {int(change*10000)/100}%")
                 else:
                     if signal == "BUY":
                         candidate_entries.append((symbol, volatility, price))
@@ -68,6 +73,7 @@ def run_screener(screen):
         if not in_position and candidate_entries:
             best = max(candidate_entries, key=lambda x: x[1])
             symbol, vol, price = best
+            enter_trade(symbol)
             send_slack_alert(f"💡 BUY: {symbol} at {price} (volatility: {vol:.2f})")
             in_position = True
             holding_symbol = symbol

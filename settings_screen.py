@@ -1,7 +1,6 @@
 import pygame
 import sys
 from fetcher import generate_backtest_data
-from random_forest import recreate_model
 from config import GRAY, LIGHT_GRAY, BLACK, WHITE
 
 pygame.init()
@@ -60,7 +59,6 @@ def run_settings(screen):
 
     buttons = [
         Button("Generate Data", (150, 100), open_popup),
-        Button("Retrain RF", (150, 160), recreate_model, params=screen)
     ]
 
     cancel_btn = Button("Cancel", (120, 260), cancel_popup, sizes=(170, 50))

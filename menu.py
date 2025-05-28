@@ -3,6 +3,7 @@ import sys
 from config import GRAY, LIGHT_GRAY, BLACK, WHITE
 from screener import run_screener
 from backtest import run_backtest
+from trader import enter_trade, exit_trade
 from settings_screen import run_settings
 
 

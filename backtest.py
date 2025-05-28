@@ -16,7 +16,7 @@ BAR_X = 50
 BAR_Y = HEIGHT - 100
 
 def run_backtest(screen):
-    backtest_range = 1000
+    backtest_range = 15000
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", 22)
     pygame.display.set_caption("Backtester")
