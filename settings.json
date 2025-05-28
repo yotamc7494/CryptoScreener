@@ -1,0 +1,54 @@
+{
+    "coins": {
+        "bitcoin": "BTC",
+        "ethereum": "ETH",
+        "solana": "SOL",
+        "avalanche-2": "AVAX",
+        "polkadot": "DOT",
+        "cardano": "ADA",
+        "binancecoin": "BNB",
+        "cosmos": "ATOM",
+        "near": "NEAR",
+        "algorand": "ALGO",
+        "harmony": "ONE",
+        "elrond-erd-2": "EGLD",
+        "aptos": "APT",
+        "tezos": "XTZ",
+        "fantom": "FTM",
+        "hedera-hashgraph": "HBAR",
+        "flow": "FLOW",
+        "kava": "KAVA",
+        "thorchain": "RUNE",
+        "mina-protocol": "MINA"
+    },
+    "urls": {
+        "binance": "https://api.binance.com/api/v3/klines",
+        "binance trade": "https://testnet.binance.vision/api"
+    },
+    "keys and secrets": {
+        "binance key": "8ETWjaWSIyMOydI3lGmql9fj9QlPTYV3ZDcqcLtLiDdSPWwkNz1UWgV9PXW1FuVK",
+        "binance secret": "JKnCRJzUZCCvpkkc8crKrUzTPHeY3GuCFGohglJZY71BuSyr1QwLShznMDu0OIes",
+        "slack key": "https://hooks.slack.com/services/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"
+    },
+    "conditions": {
+        "send slack": false,
+        "auto trade": true
+    },
+    "sizes": {
+        "width": 600,
+        "height": 400
+    },
+    "strategy": {
+        "backtest range": 10000,
+        "swing look back": 100,
+        "swing range": 3,
+        "trend tolerance": 0.005,
+        "buy rsi": 35,
+        "sell rsi": 65,
+        "but stoch": 20,
+        "sell stoch": 80,
+        "buy bp": 0.25,
+        "sell bp": 0.75,
+        "risk management": 0.5
+    }
+}

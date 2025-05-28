@@ -1,21 +1,12 @@
 import numpy as np
 import pygame
-from config import LAYER1_COINS, LIGHT_GRAY, WIDTH, HEIGHT
+from config import LAYER1_COINS, LIGHT_GRAY, WIDTH, HEIGHT, WHITE, BLACK, GREEN, BAR_WIDTH, BAR_X, BAR_Y, BAR_HEIGHT, BACKTEST_RANGE
 from fetcher import load_backtest_data
 from indicators import add_indicators
 from strategy import apply_strategy
 
-
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GREEN = (0, 200, 0)
-BAR_WIDTH = WIDTH - 100
-BAR_HEIGHT = 30
-BAR_X = 50
-BAR_Y = HEIGHT - 100
-
 def run_backtest(screen):
-    backtest_range = 1000
+    backtest_range = BACKTEST_RANGE
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", 22)
     pygame.display.set_caption("Backtester")
