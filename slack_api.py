@@ -1,7 +1,10 @@
 import requests
-SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
+from config import SLACK_WEBHOOK_URL, SEND_SLACK
+
 
 def send_slack_alert(message):
+    if not SEND_SLACK:
+        return
     payload = {"text": message}
     print(f"Slack msg: {message}")
     try:

@@ -1,14 +1,13 @@
 import pygame
 import sys
-from config import GRAY, LIGHT_GRAY, BLACK, WHITE
+from config import GRAY, LIGHT_GRAY, BLACK, WHITE, WIDTH, HEIGHT
 from screener import run_screener
 from backtest import run_backtest
-from trader import enter_trade, exit_trade
 from settings_screen import run_settings
 
 
 pygame.init()
-screen = pygame.display.set_mode((600, 400))
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Crypto Screener Menu")
 font = pygame.font.SysFont("arial", 30)
 clock = pygame.time.Clock()

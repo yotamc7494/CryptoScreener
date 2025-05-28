@@ -1,4 +1,7 @@
 import numpy as np
+from config import TREND_TOLERANCE, SWINGS_LOOK_BACK, SWING_RANGE
+
+
 def add_indicators(df):
     df = df.copy()
     df = add_rsi(df)
@@ -9,6 +12,7 @@ def add_indicators(df):
     df = add_swing_points(df)
     df = add_trend_support_resistance(df)
     return df
+
 
 def normalize_indicators(df):
     # Bounded indicators
@@ -22,6 +26,7 @@ def normalize_indicators(df):
 
     return df
 
+
 def add_rsi(df, period=14):
     delta = df["close"].diff()
     gain = delta.clip(lower=0).rolling(window=period).mean()
@@ -30,12 +35,14 @@ def add_rsi(df, period=14):
     df["rsi"] = 100 - (100 / (1 + rs))
     return df
 
+
 def add_stochastic(df, k_period=14, d_period=3):
     low_min = df["low"].rolling(window=k_period).min()
     high_max = df["high"].rolling(window=k_period).max()
     df["stoch_k"] = 100 * (df["close"] - low_min) / (high_max - low_min)
     df["stoch_d"] = df["stoch_k"].rolling(window=d_period).mean()
     return df
+
 
 def add_bollinger_bands(df, period=20, std_dev=2):
     ma = df["close"].rolling(window=period).mean()
@@ -45,15 +52,18 @@ def add_bollinger_bands(df, period=20, std_dev=2):
     df["bollinger_width"] = (df["bb_upper"] - df["bb_lower"]) / ma
     return df
 
+
 def add_bollinger_position(df):
     df["bollinger_position"] = (df["close"] - df["bb_lower"]) / (df["bb_upper"] - df["bb_lower"])
     return df
+
 
 def add_volume_change(df):
     df["volume_change"] = df["volume"].pct_change().fillna(0)
     return df
 
-def add_swing_points(df, lookback=3):
+
+def add_swing_points(df, lookback=SWING_RANGE):
     highs = df["high"]
     lows = df["low"]
     swing = [0] * len(df)
@@ -73,7 +83,7 @@ def add_swing_points(df, lookback=3):
     return df
 
 
-def add_trend_support_resistance(df, tolerance_pct=0.005, lookback=100):
+def add_trend_support_resistance(df, tolerance_pct=TREND_TOLERANCE, lookback=SWINGS_LOOK_BACK):
     df = df.copy()
 
     n = len(df)

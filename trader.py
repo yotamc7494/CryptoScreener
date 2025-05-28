@@ -1,9 +1,9 @@
-from config import BINANCE_KEY, BINANCE_SECRET, LAYER1_COINS
+from config import BINANCE_KEY, BINANCE_SECRET, LAYER1_COINS, BINANCE_TRADE_URL, RISK_MANAGEMENT
 from binance.client import Client
-import os
 client = Client(BINANCE_KEY, BINANCE_SECRET)
-client.API_URL = 'https://testnet.binance.vision/api'  # <--- use testnet endpoint
+client.API_URL = BINANCE_TRADE_URL  # <--- use testnet endpoint
 SYMBOL_PAIRS = {v: f"{v}USDT" for v in LAYER1_COINS.values()}
+
 def sell_all_non_usdt():
     account = client.get_account()
     all_balances = account["balances"]
@@ -29,9 +29,11 @@ def sell_all_non_usdt():
             print(f"✅ Sold {coin} at market price")
         except Exception as e:
             print(f"⚠️ Could not sell {coin}: {e}")
-def enter_trade(symbol, percantage=50):
+
+
+def enter_trade(symbol, percentage=RISK_MANAGEMENT):
     current_balance = get_balance()
-    usdt_amount = int(percantage*current_balance)
+    usdt_amount = int(percentage*current_balance)
     pair = SYMBOL_PAIRS.get(symbol)
     if not pair:
         print(f"Symbol {symbol} not found.")
@@ -52,6 +54,7 @@ def enter_trade(symbol, percantage=50):
 
 def get_balance():
     return client.get_asset_balance(asset='USDT')
+
 
 def exit_trade(symbol):
     pair = SYMBOL_PAIRS.get(symbol)

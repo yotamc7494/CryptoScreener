@@ -1,5 +1,4 @@
 import pygame
-import sys
 from fetcher import generate_backtest_data
 from config import GRAY, LIGHT_GRAY, BLACK, WHITE
 

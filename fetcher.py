@@ -4,14 +4,7 @@ import time
 import pygame
 import os
 import pickle
-from config import LAYER1_COINS, WHITE, BLACK, GREEN
-
-BINANCE_URL = "https://api.binance.com/api/v3/klines"
-WIDTH, HEIGHT = 600, 400
-BAR_WIDTH = WIDTH - 100
-BAR_HEIGHT = 30
-BAR_X = 50
-BAR_Y = HEIGHT - 100
+from config import LAYER1_COINS, WHITE, BLACK, GREEN, BINANCE_URL, BAR_X, BAR_Y, BAR_WIDTH, BAR_HEIGHT
 
 
 def fetch_binance_ohlc(symbol, interval="1h", limit=1000):
