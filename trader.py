@@ -1,5 +1,6 @@
 from config import BINANCE_KEY, BINANCE_SECRET, LAYER1_COINS, BINANCE_TRADE_URL, RISK_MANAGEMENT
 from binance.client import Client
+import math
 client = Client(BINANCE_KEY, BINANCE_SECRET)
 client.API_URL = BINANCE_TRADE_URL  # <--- use testnet endpoint
 SYMBOL_PAIRS = {v: f"{v}USDT" for v in LAYER1_COINS.values()}
@@ -42,7 +43,9 @@ def enter_trade(symbol, percentage=RISK_MANAGEMENT):
     # Get price to calculate quantity
     ticker = client.get_symbol_ticker(symbol=pair)
     price = float(ticker["price"])
-    quantity = round(usdt_amount / price, 6)  # rounded to 6 decimal precision
+    quantity = round(usdt_amount / price, 6)
+    step = get_lot_size(pair)
+    quantity = round_step_size(quantity, step)
 
     try:
         order = client.order_market_buy(symbol=pair, quantity=quantity)
@@ -52,10 +55,23 @@ def enter_trade(symbol, percentage=RISK_MANAGEMENT):
         print(f"[ERROR] Failed to buy {symbol}: {e}")
         return None
 
+
+def get_lot_size(symbol):
+    exchange_info = client.get_exchange_info()
+    for s in exchange_info['symbols']:
+        if s['symbol'] == symbol:
+            for f in s['filters']:
+                if f['filterType'] == 'LOT_SIZE':
+                    return f['stepSize']
+    return None
+
+def round_step_size(quantity, step_size):
+    precision = int(round(-math.log(float(step_size), 10), 0))
+    return round(quantity - (quantity % float(step_size)), precision)
+
+
 def get_balance():
-    return client.get_asset_balance(asset='USDT')
-
-
+    return float(client.get_asset_balance(asset='USDT')['free'])
 def exit_trade(symbol):
     pair = SYMBOL_PAIRS.get(symbol)
     if not pair:

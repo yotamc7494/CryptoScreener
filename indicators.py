@@ -1,5 +1,7 @@
 import numpy as np
-from config import TREND_TOLERANCE, SWINGS_LOOK_BACK, SWING_RANGE
+from config import TREND_TOLERANCE, SWINGS_LOOK_BACK, SWING_RANGE, ATR_MULT
+import pandas as pd
+from scipy.signal import argrelextrema
 
 
 def add_indicators(df):
@@ -9,8 +11,9 @@ def add_indicators(df):
     df = add_bollinger_bands(df)
     df = add_bollinger_position(df)
     df = add_volume_change(df)
-    df = add_swing_points(df)
-    df = add_trend_support_resistance(df)
+    df = add_macd(df)
+    df = add_atr(df)
+    df = add_short_rsi_indicator(df)
     return df
 
 
@@ -26,6 +29,15 @@ def normalize_indicators(df):
 
     return df
 
+def add_macd(df, fast=12, slow=26, signal=9):
+    ema_fast = df["close"].ewm(span=fast, adjust=False).mean()
+    ema_slow = df["close"].ewm(span=slow, adjust=False).mean()
+    df["macd"] = ema_fast - ema_slow
+    df["macd_signal"] = df["macd"].ewm(span=signal, adjust=False).mean()
+    df["macd_histogram"] = df["macd"] - df["macd_signal"]
+    return df
+
+
 
 def add_rsi(df, period=14):
     delta = df["close"].diff()
@@ -34,6 +46,44 @@ def add_rsi(df, period=14):
     rs = gain / loss
     df["rsi"] = 100 - (100 / (1 + rs))
     return df
+
+
+def add_short_rsi_indicator(df, period=5):
+    df = df.copy()
+
+    # Calculate 5-day RSI
+    delta = df["close"].diff()
+    gain = delta.clip(lower=0).rolling(window=period).mean()
+    loss = -delta.clip(upper=0).rolling(window=period).mean()
+    rs = gain / loss
+    df["rsi_5"] = 100 - (100 / (1 + rs))
+
+    # 20-day moving average
+    df["ma_20"] = df["close"].rolling(20).mean()
+
+    # RSI decreasing 3 days in a row
+    df["rsi_down_3"] = (
+        (df["rsi_5"] < df["rsi_5"].shift(1)) &
+        (df["rsi_5"].shift(1) < df["rsi_5"].shift(2)) &
+        (df["rsi_5"].shift(2) < df["rsi_5"].shift(3))
+    )
+
+    # RSI below 60 for at least 3 days
+    rsi_below_60 = df["rsi_5"] < 60
+    df["rsi_below_60_3d"] = rsi_below_60.rolling(3).sum() >= 3
+
+    # Signal conditions
+    df["rsi_signal_buy"] = (
+        (df["rsi_5"] < 30) &
+        (df["rsi_down_3"]) &
+        (df["rsi_below_60_3d"]) &
+        (df["close"] > df["ma_20"])
+    )
+
+    df["rsi_signal_sell"] = df["rsi_5"] > 50
+
+    return df
+
 
 
 def add_stochastic(df, k_period=14, d_period=3):
@@ -63,137 +113,58 @@ def add_volume_change(df):
     return df
 
 
-def add_swing_points(df, lookback=SWING_RANGE):
-    highs = df["high"]
-    lows = df["low"]
-    swing = [0] * len(df)
-
-    for i in range(lookback, len(df) - lookback):
-        prev_highs = highs.iloc[i - lookback:i]
-        next_highs = highs.iloc[i + 1:i + 1 + lookback]
-        prev_lows = lows.iloc[i - lookback:i]
-        next_lows = lows.iloc[i + 1:i + 1 + lookback]
-
-        if highs.iloc[i] > max(prev_highs) and highs.iloc[i] > max(next_highs):
-            swing[i] = 1  # Swing High
-        elif lows.iloc[i] < min(prev_lows) and lows.iloc[i] < min(next_lows):
-            swing[i] = -1  # Swing Low
-
-    df["swing"] = swing
-    return df
-
-
-def add_trend_support_resistance(df, tolerance_pct=TREND_TOLERANCE, lookback=SWINGS_LOOK_BACK):
+def add_atr(df, period=14):
     df = df.copy()
+    high = df["high"]
+    low = df["low"]
+    close = df["close"]
 
-    n = len(df)
-    idx_range = np.arange(n)
-    lows = df["low"].values
-    highs = df["high"].values
-    swings = df["swing"].values
+    tr1 = high - low
+    tr2 = (high - close.shift(1)).abs()
+    tr3 = (low - close.shift(1)).abs()
 
-    support_scores = np.zeros(n)
-    support_lines = np.full(n, np.nan)
-    resistance_scores = np.zeros(n)
-    resistance_lines = np.full(n, np.nan)
-
-    swing_low_pos = idx_range[swings == -1]
-    swing_high_pos = idx_range[swings == 1]
-
-    support_trend = None
-    resistance_trend = None
-
-    for i in range(lookback, n):
-        # SUPPORT
-        if swings[i] == -1:
-            current_price = lows[i]
-
-            if support_trend:
-                expected = support_trend["slope"] * i + support_trend["intercept"]
-                tolerance = expected * tolerance_pct
-                if abs(current_price - expected) <= tolerance:
-                    support_trend["score"] += 1
-                else:
-                    support_trend["score"] -= 1
-
-                if support_trend["score"] <= 0:
-                    support_trend = None
-                else:
-                    support_scores[i] = support_trend["score"]
-                    support_lines[i] = expected
-                    continue
-
-            recent = swing_low_pos[swing_low_pos < i][-lookback:]
-            if len(recent) >= 2:
-                for j in range(len(recent) - 1):
-                    p1, p2 = recent[j], recent[j + 1]
-                    if p2 - p1 == 0:
-                        continue
-                    price1 = lows[p1]
-                    price2 = lows[p2]
-                    slope = (price2 - price1) / (p2 - p1)
-                    intercept = price2 - slope * p2
-                    expected = slope * i + intercept
-                    tolerance = expected * tolerance_pct
-                    if abs(current_price - expected) <= tolerance:
-                        support_trend = {"slope": slope, "intercept": intercept, "score": 2}
-                        support_scores[i] = 2
-                        support_lines[i] = expected
-                        break
-
-        # RESISTANCE
-        if swings[i] == 1:
-            current_price = highs[i]
-
-            if resistance_trend:
-                expected = resistance_trend["slope"] * i + resistance_trend["intercept"]
-                tolerance = expected * tolerance_pct
-                if abs(current_price - expected) <= tolerance:
-                    resistance_trend["score"] += 1
-                else:
-                    resistance_trend["score"] -= 1
-
-                if resistance_trend["score"] <= 0:
-                    resistance_trend = None
-                else:
-                    resistance_scores[i] = resistance_trend["score"]
-                    resistance_lines[i] = expected
-                    continue
-
-            recent = swing_high_pos[swing_high_pos < i][-lookback:]
-            if len(recent) >= 2:
-                for j in range(len(recent) - 1):
-                    p1, p2 = recent[j], recent[j + 1]
-                    if p2 - p1 == 0:
-                        continue
-                    price1 = highs[p1]
-                    price2 = highs[p2]
-                    slope = (price2 - price1) / (p2 - p1)
-                    intercept = price2 - slope * p2
-                    expected = slope * i + intercept
-                    tolerance = expected * tolerance_pct
-                    if abs(current_price - expected) <= tolerance:
-                        resistance_trend = {"slope": slope, "intercept": intercept, "score": 2}
-                        resistance_scores[i] = 2
-                        resistance_lines[i] = expected
-                        break
-
-    df["trend_support_score"] = support_scores
-    df["trend_support_line"] = support_lines
-    df["trend_resistance_score"] = resistance_scores
-    df["trend_resistance_line"] = resistance_lines
-
-    # Vectorized trend_touch detection
-    support_touch = np.where(
-        np.abs(lows - support_lines) <= support_lines * tolerance_pct, 1, 0
-    )
-    resistance_touch = np.where(
-        np.abs(highs - resistance_lines) <= resistance_lines * tolerance_pct, -1, 0
-    )
-    df["trend_touch"] = support_touch + resistance_touch
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    df["atr"] = tr.rolling(window=period).mean()
 
     return df
 
 
+def add_swing_points(df, order=SWING_RANGE, atr_multiplier=1, confirmation_window=SWING_RANGE):
+    df = df.copy()
+    df["swing"] = 0
+    highs = df["high"].values
+    lows = df["low"].values
+    closes = df["close"].values
+    atr = df["atr"]
+    idx = df.index
+    center = len(df) - order - confirmation_window
+    if center < order or center + confirmation_window >= len(df):
+        return df  # not enough data
+    # Swing high
+    left_highs = highs[center - order:center]
+    right_highs = highs[center + 1:center + 1 + order]
+    swing_high = highs[center]
 
+    if swing_high > max(left_highs) and swing_high > max(right_highs):
+        swing_atr = atr.iloc[center]
+        if swing_atr and (swing_high - max(max(left_highs), max(right_highs)) > atr_multiplier * swing_atr):
+            # Confirmation: close < low of swing high within next N candles
+            confirm = any(closes[center + 1 + i] < lows[center] for i in range(confirmation_window))
+            if confirm:
+                df.loc[idx[-1], "swing"] = 1
+
+    # Swing low
+    left_lows = lows[center - order:center]
+    right_lows = lows[center + 1:center + 1 + order]
+    swing_low = lows[center]
+
+    if swing_low < min(left_lows) and swing_low < min(right_lows):
+        swing_atr = atr.iloc[center]
+        if swing_atr and (min(min(left_lows), min(right_lows)) - swing_low > atr_multiplier * swing_atr):
+            # Confirmation: close > high of swing low within next N candles
+            confirm = any(closes[center + 1 + i] > highs[center] for i in range(confirmation_window))
+            if confirm:
+                df.loc[idx[-1], "swing"] = -1
+
+    return df
 

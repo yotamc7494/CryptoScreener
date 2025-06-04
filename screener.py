@@ -51,9 +51,9 @@ def run_screener(screen):
                         in_position = False
                         holding_symbol = None
                         entry_price = 0
-                        current_balance = get_balance()
-                        change = (current_balance-starting_balance)/starting_balance
-                        print(f"Current P/L: {int(change*10000)/100}%")
+                        temp_balance = get_balance()
+                        temp_change = (temp_balance-starting_balance)/starting_balance
+                        print(f"Current P/L: {int(temp_change*10000)/100}%")
                 else:
                     if signal == "BUY":
                         candidate_entries.append((symbol, volatility, price))

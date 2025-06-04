@@ -28,6 +28,7 @@ SWINGS_LOOK_BACK = None
 SWING_RANGE = None
 TREND_TOLERANCE = None
 BUY_RSI = None
+ATR_MULT = None
 SELL_RSI = None
 BUY_STOCH = None
 SELL_STOCH = None
@@ -88,6 +89,7 @@ def load(s=None):
     BUY_STOCH = settings['strategy']["but stoch"]
     SELL_STOCH = settings['strategy']["sell stoch"]
     BUY_BP = settings['strategy']["buy bp"]
+    ATR_MULT = settings['strategy']["atr mult"]
     SELL_BP = settings['strategy']["sell bp"]
     RISK_MANAGEMENT = settings['strategy']["risk management"]
 
@@ -113,6 +115,7 @@ def reload():
     SEND_SLACK = settings["conditions"]["send slack"]
     BACKTEST_RANGE = settings['strategy']["backtest range"]
     WIDTH, HEIGHT = settings['sizes']['width'], settings['sizes']['height']
+    ATR_MULT = settings['strategy']["atr mult"]
     BAR_WIDTH = WIDTH - 100
     BAR_HEIGHT = 30
     BAR_X = 50

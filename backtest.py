@@ -1,94 +1,110 @@
 import numpy as np
 import pygame
-from config import LAYER1_COINS, LIGHT_GRAY, WIDTH, HEIGHT, WHITE, BLACK, GREEN, BAR_WIDTH, BAR_X, BAR_Y, BAR_HEIGHT, BACKTEST_RANGE
+from config import LAYER1_COINS, LIGHT_GRAY, WIDTH, HEIGHT, WHITE, BLACK, GREEN, BAR_WIDTH, BAR_X, BAR_Y, BAR_HEIGHT, BACKTEST_RANGE, SWING_RANGE
 from fetcher import load_backtest_data
-from indicators import add_indicators
-from strategy import apply_strategy
+from indicators import add_indicators, add_swing_points
+from strategy import get_signal
+
 
 def run_backtest(screen):
-    backtest_range = BACKTEST_RANGE
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", 22)
     pygame.display.set_caption("Backtester")
 
     coin_data = load_backtest_data()
-    signals_map, prices_map = {}, {}
+    symbols = list(LAYER1_COINS.values())
     aligned_index = None
-    idx = 0
-    for symbol in LAYER1_COINS.values():
-        screen.fill(WHITE)
-        header = font.render("Formatting Data", True, BLACK)
-        width = header.get_width()
-        screen.blit(header, ((screen.get_size()[0] / 2) - (width / 2), 50))
-        progress = idx / len(list(LAYER1_COINS.items()))
-        idx += 1
-        pygame.draw.rect(screen, (100, 100, 100), (BAR_X, BAR_Y, BAR_WIDTH, BAR_HEIGHT))
-        pygame.draw.rect(screen, GREEN, (BAR_X, BAR_Y, int(BAR_WIDTH * progress), BAR_HEIGHT))
 
-        percent_text = font.render(f"{int(progress * 100)}%", True, BLACK)
-        screen.blit(percent_text, (BAR_X + BAR_WIDTH // 2 - 20, BAR_Y + 5))
-
-        pygame.display.flip()
+    for symbol in symbols:
         df = coin_data.get(symbol)
-        if df is None or len(df) < backtest_range:
-            continue
-        df = df.tail(backtest_range).copy()
-        df = add_indicators(df)
-        df = apply_strategy(df)
-        signals_map[symbol] = df["signal"]
-        prices_map[symbol] = df["close"]
-        aligned_index = df.index if aligned_index is None else aligned_index.intersection(df.index)
-    aligned_index = aligned_index[-backtest_range:]
+        if df is not None and len(df) >= BACKTEST_RANGE:
+            aligned_index = df.tail(BACKTEST_RANGE).index if aligned_index is None else aligned_index.intersection(df.index)
+    aligned_index = aligned_index[-BACKTEST_RANGE:]
     n_steps = len(aligned_index)
+
     capital = 1.0
     equity = np.zeros(n_steps)
     equity[0] = capital
     trades = []
-
     in_position = False
     holding_symbol = None
     entry_price = 0
+    coins_with_indicators = {}
+    signals = {}
 
-    symbols = list(signals_map.keys())
-    signal_arr = {s: signals_map[s].reindex(aligned_index).values for s in symbols}
-    price_arr = {s: prices_map[s].reindex(aligned_index).values for s in symbols}
+    for symbol in symbols:
+        df = coin_data[symbol].copy()
+        df = add_indicators(df)
+        coins_with_indicators[symbol] = df
+        signals[symbol] = []
 
     for i in range(1, n_steps):
-        if i % 50 == 0:
+        current_index = aligned_index[i]
+        df_now_map = {}
+
+        for symbol in symbols:
+            df = coins_with_indicators[symbol]
+            if current_index not in df.index:
+                signals[symbol].append("NEUTRAL")
+                continue
+            """
+            current_loc = df.index.get_loc(current_index)
+            left = max(current_loc - SWING_RANGE * 3, 0)
+            right = current_loc + 1  # include current row, but not future
+            swing_window = df.iloc[left:right].copy()
+
+            swing_window = add_swing_points(swing_window)
+            df.at[current_index, "swing"] = 0
+            swing_series = swing_window["swing"]
+
+            if (swing_series == 1).any():
+                df.at[current_index, "swing"] = 1
+            elif (swing_series == -1).any():
+                df.at[current_index, "swing"] = -1
+            """
+            row = df.loc[current_index]
+            signal = get_signal(row)
+            signals[symbol].append(signal)
+            df_now_map[symbol] = df
+
+        if i % 15 == 0:
             screen.fill(WHITE)
             draw_chart(screen, equity, i)
-            progress = int((i/n_steps)*10000)/100
+            progress = int((i / n_steps) * 10000) / 100
             header = font.render(f"{progress}%", True, BLACK)
-            width = header.get_width()
-            screen.blit(header, ((screen.get_size()[0] / 2) - (width / 2), screen.get_size()[1]-50))
+            screen.blit(header, ((screen.get_size()[0] / 2) - (header.get_width() / 2), screen.get_size()[1] - 50))
             pygame.display.flip()
+            if i % 10 == 0:
+                pygame.event.pump()
+                pygame.display.update()
+
         if in_position:
-            signal = signal_arr[holding_symbol][i]
-            price = price_arr[holding_symbol][i]
-            if signal == "SELL":
-                gain = (price - entry_price) / entry_price
-                capital *= (1 + gain)
-                equity[i] = capital
-                trades.append(gain)
-                in_position = False
-                holding_symbol = None
-                entry_price = 0
+            df = df_now_map.get(holding_symbol)
+            if df is not None and current_index in df.index:
+                signal = signals[holding_symbol][-1]
+                price = df.loc[current_index, "close"]
+                if signal == "SELL":
+                    gain = (price - entry_price) / entry_price
+                    capital *= (1 + gain)
+                    equity[i] = capital
+                    trades.append(gain)
+                    in_position = False
+                    holding_symbol = None
+                    entry_price = 0
+                else:
+                    equity[i] = equity[i - 1]
             else:
                 equity[i] = equity[i - 1]
         else:
-            for s in symbols:
-                if signal_arr[s][i] == "BUY":
-                    in_position = True
-                    holding_symbol = s
-                    entry_price = price_arr[s][i]
-                    break
-            if holding_symbol:
-                price = price_arr[holding_symbol][i]
-                gain = (price - entry_price) / entry_price
-                temp_capital = capital * (1 + gain)
-                equity[i] = temp_capital
-            else:
-                equity[i] = equity[i - 1]
+            for symbol in symbols:
+                if signals[symbol][-1] == "BUY":
+                    df = coins_with_indicators[symbol]
+                    if current_index in df.index:
+                        in_position = True
+                        holding_symbol = symbol
+                        entry_price = df.loc[current_index, "close"]
+                        break
+            equity[i] = capital if in_position else equity[i - 1]
 
     # Calculate stats
     total = len(trades)

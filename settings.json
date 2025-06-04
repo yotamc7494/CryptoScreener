@@ -14,7 +14,6 @@
         "elrond-erd-2": "EGLD",
         "aptos": "APT",
         "tezos": "XTZ",
-        "fantom": "FTM",
         "hedera-hashgraph": "HBAR",
         "flow": "FLOW",
         "kava": "KAVA",
@@ -39,9 +38,10 @@
         "height": 400
     },
     "strategy": {
-        "backtest range": 10000,
+        "backtest range": 15000,
         "swing look back": 100,
-        "swing range": 3,
+        "swing range": 5,
+        "atr mult": 0.5,
         "trend tolerance": 0.005,
         "buy rsi": 35,
         "sell rsi": 65,
