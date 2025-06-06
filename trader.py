@@ -1,4 +1,4 @@
-from config import BINANCE_KEY, BINANCE_SECRET, LAYER1_COINS, BINANCE_TRADE_URL, RISK_MANAGEMENT
+from config import BINANCE_KEY, BINANCE_SECRET, LAYER1_COINS, BINANCE_TRADE_URL, RISK_MANAGEMENT, LAYER1_COINS
 from binance.client import Client
 import math
 client = Client(BINANCE_KEY, BINANCE_SECRET)
@@ -8,10 +8,15 @@ SYMBOL_PAIRS = {v: f"{v}USDT" for v in LAYER1_COINS.values()}
 def sell_all_non_usdt():
     account = client.get_account()
     all_balances = account["balances"]
+    flatten_coins = [LAYER1_COINS[v] for (s, v) in enumerate(LAYER1_COINS)]
+    my_symbols = []
+    for s in all_balances:
+        if s['asset'] in flatten_coins:
+            my_symbols.append(s)
     symbols_info = client.get_exchange_info()["symbols"]
     all_pairs = {s["symbol"] for s in symbols_info}
 
-    for asset in all_balances:
+    for asset in my_symbols:
         coin = asset["asset"]
         free = float(asset["free"])
 
@@ -30,7 +35,6 @@ def sell_all_non_usdt():
             print(f"✅ Sold {coin} at market price")
         except Exception as e:
             print(f"⚠️ Could not sell {coin}: {e}")
-
 
 def enter_trade(symbol, percentage=RISK_MANAGEMENT):
     current_balance = get_balance()

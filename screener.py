@@ -5,7 +5,7 @@ from fetcher import fetch_binance_ohlc
 from config import LAYER1_COINS, BAR_HEIGHT, BAR_X, BAR_Y, BAR_WIDTH, WHITE, GREEN, BLACK
 from indicators import add_indicators
 from slack_api import send_slack_alert
-from trader import exit_trade, enter_trade, get_balance
+from trader import exit_trade, enter_trade, get_balance, sell_all_non_usdt
 from strategy import apply_strategy
 
 def run_screener(screen):
@@ -18,6 +18,7 @@ def run_screener(screen):
     in_position = False
     holding_symbol = None
     entry_price = 0
+    sell_all_non_usdt()
 
     def fetch_and_process(screen_obj):
         nonlocal in_position, holding_symbol, entry_price
