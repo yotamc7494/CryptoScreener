@@ -30,36 +30,32 @@ def run_screener(screen):
         candidate_entries = []
 
         for name, symbol in LAYER1_COINS.items():
-            try:
-                df = fetch_binance_ohlc(symbol)
-                if df is None or len(df) < 50:
-                    continue
-                df = add_indicators(df)
-                df = apply_strategy(df)
-                screen_obj.fill(WHITE)
-                draw_candlestick_chart(screen_obj, df, symbol)
-                pygame.display.flip()
+            df = fetch_binance_ohlc(symbol)
+            if df is None or len(df) < 50:
+                continue
+            df = add_indicators(df)
+            df = apply_strategy(df)
+            screen_obj.fill(WHITE)
+            draw_candlestick_chart(screen_obj, df, symbol)
+            pygame.display.flip()
 
-                signal = df["signal"].iloc[-1]
-                price = df["close"].iloc[-1]
-                volatility = df["high"].iloc[-1] - df["low"].iloc[-1]
+            signal = df["signal"].iloc[-1]
+            price = df["close"].iloc[-1]
+            volatility = df["high"].iloc[-1] - df["low"].iloc[-1]
 
-                if in_position:
-                    if symbol == holding_symbol and signal == "SELL":
-                        exit_trade(symbol)
-                        send_slack_alert(f"🔻 SELL: {symbol} at {price}")
-                        in_position = False
-                        holding_symbol = None
-                        entry_price = 0
-                        temp_balance = get_balance()
-                        temp_change = (temp_balance-starting_balance)/starting_balance
-                        print(f"Current P/L: {int(temp_change*10000)/100}%")
-                else:
-                    if signal == "BUY":
-                        candidate_entries.append((symbol, volatility, price))
-
-            except Exception as e:
-                print(f"[ERROR] {symbol}: {e}")
+            if in_position:
+                if symbol == holding_symbol and signal == "SELL":
+                    exit_trade(symbol)
+                    send_slack_alert(f"🔻 SELL: {symbol} at {price}")
+                    in_position = False
+                    holding_symbol = None
+                    entry_price = 0
+                    temp_balance = get_balance()
+                    temp_change = (temp_balance - starting_balance) / starting_balance
+                    print(f"Current P/L: {int(temp_change * 10000) / 100}%")
+            else:
+                if signal == "BUY":
+                    candidate_entries.append((symbol, volatility, price))
 
         if not in_position and candidate_entries:
             best = max(candidate_entries, key=lambda x: x[1])
@@ -148,56 +144,7 @@ def draw_candlestick_chart(screen, data, ticker):
         body_height = max(1, abs(close_y - open_y))
         pygame.draw.rect(screen, color, pygame.Rect(x, body_top, candle_width - 2, body_height))
 
-    # --- Find strongest support/resistance ---
-    support_scores = candles["trend_support_score"]
-    resistance_scores = candles["trend_resistance_score"]
 
-    best_support_idx = support_scores.idxmax()
-    best_resistance_idx = resistance_scores.idxmax()
-
-    def get_trendline(candles, score_series, value_col, idx):
-        if score_series.loc[idx] <= 0:
-            return None  # invalid trend
-
-        # Find last two trend points before idx
-        trend_pts = candles[candles.index <= idx][value_col].dropna()
-        if len(trend_pts) < 2:
-            return None
-
-        idx2 = trend_pts.index[-1]
-        idx1 = trend_pts.index[-2]
-        y2 = candles.loc[idx2][value_col]
-        y1 = candles.loc[idx1][value_col]
-
-        i2 = candles.index.get_loc(idx2)
-        i1 = candles.index.get_loc(idx1)
-
-        if i2 == i1:
-            return None
-
-        slope = (y2 - y1) / (i2 - i1)
-        intercept = y2 - slope * i2
-        return slope, intercept
-
-    # --- Draw trendlines with slope ---
-    def draw_trendline(slope, intercept):
-        x_start = 0
-        x_end = visible_candles - 1
-        y_start = intercept + slope * x_start
-        y_end = intercept + slope * x_end
-        px1 = int(offset_x + x_start * candle_width)
-        px2 = int(offset_x + x_end * candle_width)
-        py1 = int(scale(y_start))
-        py2 = int(scale(y_end))
-        pygame.draw.line(screen, (255, 165, 0), (px1, py1), (px2, py2), 2)
-
-    support_trend = get_trendline(candles, support_scores, "trend_support_line", best_support_idx)
-    resistance_trend = get_trendline(candles, resistance_scores, "trend_resistance_line", best_resistance_idx)
-
-    if support_trend:
-        draw_trendline(*support_trend)
-    if resistance_trend:
-        draw_trendline(*resistance_trend)
 
 
 
