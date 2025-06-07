@@ -194,17 +194,21 @@ def run_backtest(screen):
         clock.tick(30)
 
 def draw_chart(screen, equity, steps, trades_graph):
-    chart_height = 170
-    chart_top = 30
-    chart_left = 30
     offset = 20
+    chart_height = 170
+    chart_top = offset * 2
+    chart_left = offset * 2
     chart_width = 400 - chart_left - offset
     draw_graph(screen, equity[:steps], chart_height, chart_top, chart_left, chart_width, offset)
     chart_left += chart_width + offset*3
-    chart_width = WIDTH-chart_left - offset
-    chart_height = 50
+    chart_width = WIDTH-chart_left - offset*2
+    chart_height = 55
     if trades_graph['win']['total'] > 0:
         new_list = [a / trades_graph['win']['total'] for a in trades_graph['win']['data']]
+        draw_graph(screen, new_list, chart_height, chart_top, chart_left, chart_width, offset)
+    chart_top += chart_height + offset * 3
+    if trades_graph['loss']['total'] > 0:
+        new_list = [a / trades_graph['loss']['total'] for a in trades_graph['loss']['data']]
         draw_graph(screen, new_list, chart_height, chart_top, chart_left, chart_width, offset)
 
 
@@ -213,8 +217,13 @@ def draw_graph(screen, data_list, chart_height, chart_top, chart_left, chart_wid
     max_cap = max(data_list)
     min_cap = min(data_list)
     cap_range = max_cap - min_cap or 1
-
-    pygame.draw.rect(screen, LIGHT_GRAY, pygame.Rect(chart_left-offset, chart_top-offset, chart_left+chart_width+offset, chart_top+chart_height+offset), 2)
+    border = pygame.Rect(
+        chart_left-offset,
+        chart_top-offset,
+        chart_width+offset*2,
+        chart_height+offset*2
+    )
+    pygame.draw.rect(screen, LIGHT_GRAY, border, 2)
     for i in range(1, len(data_list)):
         x1 = chart_left + int((i - 1) / len(data_list) * chart_width)
         x2 = chart_left + int(i / len(data_list) * chart_width)

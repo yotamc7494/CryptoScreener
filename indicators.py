@@ -14,6 +14,7 @@ def add_indicators(df):
     df = add_macd(df)
     df = add_atr(df)
     df = add_short_rsi_indicator(df)
+    df = add_rsi_confirmations(df)
     return df
 
 
@@ -84,6 +85,18 @@ def add_short_rsi_indicator(df, period=5):
 
     return df
 
+
+def add_rsi_confirmations(df, delta=-0.0001, lag=3):
+    df = df.copy()
+
+    past_close = df["close"].shift(lag)
+    past_signal = df["rsi_signal_buy"].shift(lag)
+
+    price_change = (df["close"] - past_close) / past_close
+
+    df["rsi_confirm_buy"] = (past_signal == True) & (price_change > delta)
+
+    return df
 
 
 def add_stochastic(df, k_period=14, d_period=3):

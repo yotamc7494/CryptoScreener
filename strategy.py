@@ -4,7 +4,7 @@ from config import BUY_BP, BUY_RSI, BUY_STOCH, SELL_RSI, SELL_BP, SELL_STOCH
 
 
 def get_signal(row):
-    if row["rsi_signal_buy"]:
+    if row["rsi_confirm_buy"]:
         return "BUY"
     elif row["rsi_signal_sell"]:
         return "SELL"
