@@ -1,6 +1,7 @@
 from config import BINANCE_KEY, BINANCE_SECRET, LAYER1_COINS, BINANCE_TRADE_URL, RISK_MANAGEMENT, LAYER1_COINS
 from binance.client import Client
 import math
+from datetime import datetime
 client = Client(BINANCE_KEY, BINANCE_SECRET)
 client.API_URL = BINANCE_TRADE_URL  # <--- use testnet endpoint
 SYMBOL_PAIRS = {v: f"{v}USDT" for v in LAYER1_COINS.values()}
@@ -53,7 +54,8 @@ def enter_trade(symbol, percentage=RISK_MANAGEMENT):
 
     try:
         order = client.order_market_buy(symbol=pair, quantity=quantity)
-        print(f"✅ BUY {symbol}: {quantity} at {price}")
+        now = datetime.now()
+        print(f"{now} - ✅ BUY {symbol}: {quantity} at {price}")
         return order
     except Exception as e:
         print(f"[ERROR] Failed to buy {symbol}: {e}")
@@ -84,13 +86,16 @@ def exit_trade(symbol):
 
     try:
         balance = client.get_asset_balance(asset=symbol)
+        ticker = client.get_symbol_ticker(symbol=pair)
+        price = float(ticker['price'])
         quantity = float(balance["free"])
         if quantity <= 0:
             print(f"No {symbol} available to sell.")
             return
 
         order = client.order_market_sell(symbol=pair, quantity=round(quantity, 6))
-        print(f"✅ SELL {symbol}: {quantity}")
+        now = datetime.now()
+        print(f"{now} - ✅ SELL {symbol}: {quantity} at {price}")
         return order
     except Exception as e:
         print(f"[ERROR] Failed to sell {symbol}: {e}")

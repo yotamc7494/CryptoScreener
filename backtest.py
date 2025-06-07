@@ -31,7 +31,21 @@ def run_backtest(screen):
     entry_price = 0
     coins_with_indicators = {}
     signals = {}
-
+    trades_graph = {
+        "win": {
+            "data": [0]*100,
+            "total": 0
+        },
+        "loss": {
+            "data": [0]*100,
+            "total": 0
+        },
+        "avg": {
+            "data": [0]*100,
+            "total": 0
+        }
+    }
+    current_trade_graph = []
     for symbol in symbols:
         df = coin_data[symbol].copy()
         df = add_indicators(df)
@@ -69,7 +83,7 @@ def run_backtest(screen):
 
         if i % 15 == 0:
             screen.fill(WHITE)
-            draw_chart(screen, equity, i)
+            draw_chart(screen, equity, i, trades_graph)
             progress = int((i / n_steps) * 10000) / 100
             header = font.render(f"{progress}%", True, BLACK)
             screen.blit(header, ((screen.get_size()[0] / 2) - (header.get_width() / 2), screen.get_size()[1] - 50))
@@ -81,16 +95,23 @@ def run_backtest(screen):
         if in_position:
             df = df_now_map.get(holding_symbol)
             if df is not None and current_index in df.index:
-                signal = signals[holding_symbol][-1]
                 price = df.loc[current_index, "close"]
+                signal = signals[holding_symbol][-1]
+                gain = (price - entry_price) / entry_price
+                current_trade_graph.append(gain)
                 if signal == "SELL":
-                    gain = (price - entry_price) / entry_price
                     capital *= (1 + gain)
                     equity[i] = capital
                     trades.append(gain)
                     in_position = False
                     holding_symbol = None
                     entry_price = 0
+                    trades_graph["win" if gain > 0 else "loss"]['total'] += 1
+                    trade_ratio = len(current_trade_graph)/100
+                    for idx in range(100):
+                        trade_idx = int(trade_ratio*idx)
+                        trades_graph["win" if gain > 0 else "loss"]['data'][idx] += current_trade_graph[trade_idx]
+                    current_trade_graph = []
                 else:
                     equity[i] = equity[i - 1]
             else:
@@ -146,7 +167,7 @@ def run_backtest(screen):
                 return
 
         screen.fill(WHITE)
-        draw_chart(screen, equity, n_steps)
+        draw_chart(screen, equity, n_steps, trades_graph)
 
         stats = [
             f"Total Trades: {total}",
@@ -172,20 +193,32 @@ def run_backtest(screen):
         pygame.display.flip()
         clock.tick(30)
 
-def draw_chart(screen, equity, steps):
-    equity = equity[:steps]
+def draw_chart(screen, equity, steps, trades_graph):
     chart_height = 170
     chart_top = 30
     chart_left = 30
-    chart_width = WIDTH - chart_left - 20
-    max_cap = max(equity)
-    min_cap = min(equity)
+    offset = 20
+    chart_width = 400 - chart_left - offset
+    draw_graph(screen, equity[:steps], chart_height, chart_top, chart_left, chart_width, offset)
+    chart_left += chart_width + offset*3
+    chart_width = WIDTH-chart_left - offset
+    chart_height = 50
+    if trades_graph['win']['total'] > 0:
+        new_list = [a / trades_graph['win']['total'] for a in trades_graph['win']['data']]
+        draw_graph(screen, new_list, chart_height, chart_top, chart_left, chart_width, offset)
+
+
+
+def draw_graph(screen, data_list, chart_height, chart_top, chart_left, chart_width, offset):
+    max_cap = max(data_list)
+    min_cap = min(data_list)
     cap_range = max_cap - min_cap or 1
 
-    pygame.draw.rect(screen, LIGHT_GRAY, pygame.Rect(10, 10, 580, 210))
-    for i in range(1, len(equity)):
-        x1 = chart_left + int((i - 1) / len(equity) * chart_width)
-        x2 = chart_left + int(i / len(equity) * chart_width)
-        y1 = chart_top + int(chart_height - ((equity[i - 1] - min_cap) / cap_range) * chart_height)
-        y2 = chart_top + int(chart_height - ((equity[i] - min_cap) / cap_range) * chart_height)
+    pygame.draw.rect(screen, LIGHT_GRAY, pygame.Rect(chart_left-offset, chart_top-offset, chart_left+chart_width+offset, chart_top+chart_height+offset), 2)
+    for i in range(1, len(data_list)):
+        x1 = chart_left + int((i - 1) / len(data_list) * chart_width)
+        x2 = chart_left + int(i / len(data_list) * chart_width)
+        #print(chart_height, data_list[i - 1], min_cap, cap_range, chart_height)
+        y1 = chart_top + int(chart_height - ((data_list[i - 1] - min_cap) / cap_range) * chart_height)
+        y2 = chart_top + int(chart_height - ((data_list[i] - min_cap) / cap_range) * chart_height)
         pygame.draw.line(screen, GREEN, (x1, y1), (x2, y2), 2)
