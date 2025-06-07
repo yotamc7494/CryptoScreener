@@ -2,7 +2,7 @@ import numpy as np
 import pygame
 from config import LAYER1_COINS, LIGHT_GRAY, WIDTH, HEIGHT, WHITE, BLACK, GREEN, BAR_WIDTH, BAR_X, BAR_Y, BAR_HEIGHT, BACKTEST_RANGE, SWING_RANGE
 from fetcher import load_backtest_data
-from indicators import add_indicators, add_swing_points
+from indicators import add_indicators
 from strategy import get_signal
 
 
@@ -42,62 +42,38 @@ def run_backtest(screen):
             "total": 0
         }
     }
-    stop_loss = 10.015
-    take_profit = 0.02
-    cooldown_time = 0
+    stop_loss = 100
+    take_profit = 100
+    cooldown_time = 12
     cooldown = 0
     current_trade_graph = []
     for symbol in symbols:
         df = coin_data[symbol].copy()
         df = add_indicators(df)
+        df["signal"] = df.apply(get_signal, axis=1)
+
+        # Store full df and signal list
         coins_with_indicators[symbol] = df
-        signals[symbol] = []
+        signals[symbol] = df.loc[aligned_index, "signal"].tolist()
 
     for i in range(1, n_steps):
         current_index = aligned_index[i]
-        df_now_map = {}
 
-        for symbol in symbols:
-            df = coins_with_indicators[symbol]
-            if current_index not in df.index:
-                signals[symbol].append("NEUTRAL")
-                continue
-            """
-            current_loc = df.index.get_loc(current_index)
-            left = max(current_loc - SWING_RANGE * 3, 0)
-            right = current_loc + 1  # include current row, but not future
-            swing_window = df.iloc[left:right].copy()
-
-            swing_window = add_swing_points(swing_window)
-            df.at[current_index, "swing"] = 0
-            swing_series = swing_window["swing"]
-
-            if (swing_series == 1).any():
-                df.at[current_index, "swing"] = 1
-            elif (swing_series == -1).any():
-                df.at[current_index, "swing"] = -1
-            """
-            row = df.loc[current_index]
-            signal = get_signal(row)
-            signals[symbol].append(signal)
-            df_now_map[symbol] = df
-
-        if i % 15 == 0:
+        if i % 150 == 0:
             screen.fill(WHITE)
             draw_chart(screen, equity, i, trades_graph, mouse_pos)
             progress = int((i / n_steps) * 10000) / 100
             header = font.render(f"{progress}%", True, BLACK)
             screen.blit(header, ((screen.get_size()[0] / 2) - (header.get_width() / 2), screen.get_size()[1] - 50))
             pygame.display.flip()
-            if i % 10 == 0:
-                pygame.event.pump()
-                pygame.display.update()
+            pygame.event.pump()
+            pygame.display.update()
 
         if in_position:
-            df = df_now_map.get(holding_symbol)
+            df = coins_with_indicators.get(holding_symbol)
             if df is not None and current_index in df.index:
                 price = df.loc[current_index, "close"]
-                signal = signals[holding_symbol][-1]
+                signal = signals[holding_symbol][i]
                 gain = (price - entry_price) / entry_price
                 current_trade_graph.append(gain)
                 if signal == "SELL" or -stop_loss > gain or take_profit < gain:
@@ -124,9 +100,11 @@ def run_backtest(screen):
         else:
             cooldown = max(0, cooldown-1)
             for symbol in symbols:
-                if signals[symbol][-1] == "BUY" and cooldown == 0:
+                if signals[symbol][i] == "BUY" and cooldown == 0:
                     df = coins_with_indicators[symbol]
                     if current_index in df.index:
+                        take_profit = df.loc[current_index, "atr"] * 2.5
+                        stop_loss = df.loc[current_index, "atr"] * 3
                         in_position = True
                         holding_symbol = symbol
                         entry_price = df.loc[current_index, "close"]

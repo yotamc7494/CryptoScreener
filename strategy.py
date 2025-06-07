@@ -9,25 +9,6 @@ def get_signal(row):
     elif row["rsi_signal_sell"]:
         return "SELL"
     return "NEUTRAL"
-    # BUY Logic: Only act if swing low confirmed
-    if (
-            row["rsi"] < BUY_RSI
-            and row["stoch_k"] < BUY_STOCH
-            and row["bollinger_position"] < BUY_BP
-            and row["macd_histogram"] > 0  # Momentum confirmation
-            and row["volume_change"] > 0.05  # Rising volume
-    ):
-        return "BUY"
-
-    # SELL Logic: Only act if swing high confirmed
-    elif (
-            row["rsi"] > SELL_RSI
-            and row["stoch_k"] > SELL_STOCH
-            and row["bollinger_position"] > SELL_BP
-            and row["volume_change"] > 0):
-        return "SELL"
-
-    return "NEUTRAL"
 
 
 def apply_strategy(df):
