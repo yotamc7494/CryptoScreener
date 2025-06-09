@@ -110,7 +110,6 @@ def run_backtest(screen):
                         entry_price = df.loc[current_index, "close"]
                         break
             equity[i] = capital if in_position else equity[i - 1]
-
     # Calculate stats
     total = len(trades)
     wins = [t for t in trades if t > 0]
@@ -143,6 +142,11 @@ def run_backtest(screen):
 
     # Avg time in trade (approx, assuming equally spaced trades)
     avg_time_in_trade = round(len(equity) / total, 2) if total else 0
+    start_value = equity[0]
+    end_value = equity[-1]
+    total_hours = len(equity)
+    years = total_hours / (24 * 365)
+    cagr = (end_value / start_value) ** (1 / years) - 1
 
     # Show results in Pygame
     while True:
@@ -168,7 +172,8 @@ def run_backtest(screen):
             f"Expectancy: {expectancy}%",
             f"Profit Factor: {profit_factor}",
             f"Sharpe Ratio: {sharpe_ratio}",
-            f"Avg Time in Trade: {avg_time_in_trade}h"
+            f"Avg Time in Trade: {avg_time_in_trade}h",
+            f"CAGR: {int(cagr*10000)/100}%"
         ]
 
         for i, stat in enumerate(stats):

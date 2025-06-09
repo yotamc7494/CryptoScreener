@@ -12,19 +12,6 @@ def add_indicators(df):
     return df
 
 
-def normalize_indicators(df):
-    # Bounded indicators
-    for col in ["rsi", "stoch_k", "stoch_d", "bollinger_position"]:
-        df[col] = df[col] / 100.0
-
-    # Unbounded indicators
-    for col in ["macd", "macd_signal", "bollinger_width", "volume_change"]:
-        mean, std = df[col].mean(), df[col].std()
-        df[col] = (df[col] - mean) / (std + 1e-8)
-
-    return df
-
-
 def add_rsi(df, period=14):
     delta = df["close"].diff()
     gain = delta.clip(lower=0).rolling(window=period).mean()
@@ -58,7 +45,6 @@ def add_short_rsi_indicator(df, period=5):
     rsi_below_60 = df["rsi_5"] < 60
     df["rsi_below_60_3d"] = rsi_below_60.rolling(3).sum() >= 3
 
-    # Signal conditions
     df["rsi_signal_buy"] = (
         (df["rsi_5"] < 30) &
         (df["rsi_down_3"]) &

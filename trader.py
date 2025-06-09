@@ -2,8 +2,12 @@ from config import BINANCE_KEY, BINANCE_SECRET, LAYER1_COINS, BINANCE_TRADE_URL,
 from binance.client import Client
 import math
 from datetime import datetime
-client = Client(BINANCE_KEY, BINANCE_SECRET)
-client.API_URL = BINANCE_TRADE_URL  # <--- use testnet endpoint
+try:
+    client = Client(BINANCE_KEY, BINANCE_SECRET)
+    client.API_URL = BINANCE_TRADE_URL  # <--- use testnet endpoint
+except Exception as e:
+    print(f"Cant connect to screener: {e}")
+
 SYMBOL_PAIRS = {v: f"{v}USDT" for v in LAYER1_COINS.values()}
 
 def sell_all_non_usdt():

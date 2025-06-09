@@ -92,12 +92,14 @@ def run_screener(screen):
         countdown_text = f"Next update in: {str(remaining_time).split('.')[0]}"
         msg_surface = font.render(countdown_text, True, BLACK)
         screen.blit(msg_surface, (BAR_X, BAR_Y - 30))
-
-        current_balance = get_balance()
-        change = (current_balance - starting_balance) / starting_balance
-        profit_msg = f"Current P/L: {int(change*10000)/100}%"
-        profit_msg_surface = font.render(profit_msg, True, BLACK)
-        screen.blit(profit_msg_surface, (BAR_X, BAR_Y - 90))
+        try:
+            current_balance = get_balance()
+            change = (current_balance - starting_balance) / starting_balance
+            profit_msg = f"Current P/L: {int(change*10000)/100}%"
+            profit_msg_surface = font.render(profit_msg, True, BLACK)
+            screen.blit(profit_msg_surface, (BAR_X, BAR_Y - 90))
+        except Exception as e:
+            print(e)
 
         pygame.display.flip()
         clock.tick(30)
