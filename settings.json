@@ -27,10 +27,10 @@
     "keys and secrets": {
         "binance key": "8ETWjaWSIyMOydI3lGmql9fj9QlPTYV3ZDcqcLtLiDdSPWwkNz1UWgV9PXW1FuVK",
         "binance secret": "JKnCRJzUZCCvpkkc8crKrUzTPHeY3GuCFGohglJZY71BuSyr1QwLShznMDu0OIes",
-        "slack key": "https://hooks.slack.com/services/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"
+        "slack key": "xoxb-6466875689667-8915559227954-NNWJM8p1u4dThGeNJhTbJaW9"
     },
     "conditions": {
-        "send slack": false,
+        "send slack": true,
         "auto trade": true
     },
     "sizes": {
