@@ -1,7 +1,7 @@
 # screener.py
 import pygame
 import datetime
-from fetcher import fetch_binance_ohlc, batch_fetch
+from fetcher import fetch_binance_ohlc, batch_fetch, load_backtest_data
 from config import LAYER1_COINS, BAR_HEIGHT, BAR_X, BAR_Y, BAR_WIDTH, WHITE, GREEN, BLACK
 from indicators import add_indicators
 from slack_api import send_slack_alert
@@ -13,73 +13,86 @@ def run_screener(screen):
     pygame.display.set_caption("Crypto Screener")
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", 24)
+
+    sell_all_non_usdt()
     starting_balance = get_balance()
     last_run = None
     next_run = None
     in_position = False
     holding_symbol = None
+    position_size = 0
     entry_price = 0
-    sell_all_non_usdt()
+    run_idx = 0
+    holding_idx = None
+    latest_holding_value = 0
+    backtest_balance = 1
+    sl = 100
+    tp = 100
 
     def fetch_and_process(screen_obj):
-        nonlocal in_position, holding_symbol, entry_price
+        nonlocal in_position, holding_symbol, entry_price, holding_idx, tp, sl, backtest_balance, position_size, latest_holding_value, last_run, next_run
         last_run = datetime.datetime.now()
         next_run = (last_run + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         if next_run <= last_run:
             next_run += datetime.timedelta(hours=1)
-
-        candidate_entries = []
         fetched_data = batch_fetch(list(LAYER1_COINS.values()))
         idx = 0
-        for name, symbol in LAYER1_COINS.items():
-            df = fetched_data[idx]
-            idx += 1
-            if df is None or len(df) < 50:
-                continue
+        if in_position:
+            df = fetched_data[holding_idx]
             df = add_indicators(df)
             df = apply_strategy(df)
-            screen_obj.fill(WHITE)
-            draw_candlestick_chart(screen_obj, df, symbol)
-            pygame.display.flip()
-
             signal = df["signal"].iloc[-1]
             price = df["close"].iloc[-1]
-            volatility = df["high"].iloc[-1] - df["low"].iloc[-1]
-
-            if in_position:
-                if symbol == holding_symbol and signal == "SELL":
-                    exit_trade(symbol)
-                    send_slack_alert(f"🔻 SELL: {symbol} at {price}")
-                    in_position = False
-                    holding_symbol = None
-                    entry_price = 0
-                    temp_balance = get_balance()
-                    temp_change = (temp_balance - starting_balance) / starting_balance
-                    print(f"Current P/L: {int(temp_change * 10000) / 100}%")
-            else:
+            gain = (price - entry_price) / entry_price
+            latest_holding_value = price
+            if signal == "SELL" or -sl > gain or tp < gain:
+                exit_trade(holding_symbol)
+                send_slack_alert(f"🔻 SELL: {holding_symbol} at {price}")
+                in_position = False
+                holding_symbol = None
+                holding_idx = None
+                backtest_balance *= 1+gain
+                entry_price = 0
+                position_size = 0
+                latest_holding_value = 0
+                temp_balance = get_balance()
+                temp_change = (temp_balance - starting_balance) / starting_balance
+                print(f"Current P/L: {int(temp_change * 10000) / 100}%")
+        else:
+            for name, symbol in LAYER1_COINS.items():
+                df = fetched_data[idx]
+                if df is None or len(df) < 50:
+                    continue
+                df = add_indicators(df)
+                df = apply_strategy(df)
+                screen_obj.fill(WHITE)
+                draw_candlestick_chart(screen_obj, df, symbol)
+                pygame.display.flip()
+                signal = df["signal"].iloc[-1]
+                price = df["close"].iloc[-1]
                 if signal == "BUY":
-                    candidate_entries.append((symbol, volatility, price))
+                    atr = df["atr"].iloc[-1]
+                    tp = atr * 2.5
+                    sl = atr * 3
+                    latest_holding_value = price
+                    position_size = enter_trade(symbol)
+                    send_slack_alert(f"💡 BUY: {symbol} at {price}")
+                    in_position = True
+                    holding_idx = idx
+                    holding_symbol = symbol
+                    entry_price = price
+                    break
+                idx += 1
 
-        if not in_position and candidate_entries:
-            best = max(candidate_entries, key=lambda x: x[1])
-            symbol, vol, price = best
-            enter_trade(symbol)
-            send_slack_alert(f"💡 BUY: {symbol} at {price} (volatility: {vol:.2f})")
-            in_position = True
-            holding_symbol = symbol
-            entry_price = price
-        return last_run, next_run
-
-    last_run, next_run = fetch_and_process(screen)
+    fetch_and_process(screen)
 
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return
-
         now = datetime.datetime.now()
         if now >= next_run:
-            last_run, next_run = fetch_and_process(screen)
+            fetch_and_process(screen)
             last_run = now
             next_run = last_run.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
 
@@ -95,8 +108,9 @@ def run_screener(screen):
         screen.blit(msg_surface, (BAR_X, BAR_Y - 30))
         try:
             current_balance = get_balance()
-            change = (current_balance - starting_balance) / starting_balance
-            profit_msg = f"Current P/L: {int(change*10000)/100}%"
+            unrealized_balance = position_size*latest_holding_value
+            change = (current_balance - starting_balance + unrealized_balance) / starting_balance
+            profit_msg = f"Unrealized P/L: {int(change*10000)/100}%"
             profit_msg_surface = font.render(profit_msg, True, BLACK)
             screen.blit(profit_msg_surface, (BAR_X, BAR_Y - 90))
         except Exception as e:

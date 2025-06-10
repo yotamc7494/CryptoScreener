@@ -30,7 +30,7 @@
         "slack key": "xoxb-6466875689667-8915559227954-NNWJM8p1u4dThGeNJhTbJaW9"
     },
     "conditions": {
-        "send slack": true,
+        "send slack": false,
         "auto trade": true
     },
     "sizes": {
@@ -38,7 +38,7 @@
         "height": 400
     },
     "strategy": {
-        "backtest range": 15000,
+        "backtest range": 1000,
         "swing look back": 100,
         "swing range": 5,
         "atr mult": 0.5,

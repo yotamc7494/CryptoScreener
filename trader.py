@@ -60,7 +60,7 @@ def enter_trade(symbol, percentage=RISK_MANAGEMENT):
         order = client.order_market_buy(symbol=pair, quantity=quantity)
         now = datetime.now()
         print(f"{now} - ✅ BUY {symbol}: {quantity} at {price}")
-        return order
+        return quantity
     except Exception as e:
         print(f"[ERROR] Failed to buy {symbol}: {e}")
         return None

@@ -44,7 +44,7 @@ def run_backtest(screen):
     }
     stop_loss = 100
     take_profit = 100
-    cooldown_time = 12
+    cooldown_time = 0
     cooldown = 0
     current_trade_graph = []
     for symbol in symbols:
@@ -77,6 +77,9 @@ def run_backtest(screen):
                 gain = (price - entry_price) / entry_price
                 current_trade_graph.append(gain)
                 if signal == "SELL" or -stop_loss > gain or take_profit < gain:
+                    print(
+                        f"{i} | {holding_symbol} | {df.index[-1]} | {signal} | ENTRY: {entry_price:.4f} | EXIT: {price:.4f} | GAIN: {gain:.4%}")
+
                     if -stop_loss > gain:
                         cooldown += cooldown_time
                     capital *= (1 + gain)
@@ -103,11 +106,15 @@ def run_backtest(screen):
                 if signals[symbol][i] == "BUY" and cooldown == 0:
                     df = coins_with_indicators[symbol]
                     if current_index in df.index:
+                        entry_price = df.loc[current_index, "close"]
+                        print(
+                            f"{i} | {symbol} | {df.index[-1]} | {"BUY"} | ENTRY: {entry_price:.4f}")
+
                         take_profit = df.loc[current_index, "atr"] * 2.5
                         stop_loss = df.loc[current_index, "atr"] * 3
                         in_position = True
                         holding_symbol = symbol
-                        entry_price = df.loc[current_index, "close"]
+
                         break
             equity[i] = capital if in_position else equity[i - 1]
     # Calculate stats
