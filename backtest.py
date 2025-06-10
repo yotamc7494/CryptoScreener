@@ -71,7 +71,7 @@ def run_backtest(screen):
 
         if in_position:
             df = coins_with_indicators.get(holding_symbol)
-            if df is not None and current_index in df.index:
+            if df is not None and current_index in df.index :
                 price = df.loc[current_index, "close"]
                 signal = signals[holding_symbol][i]
                 gain = (price - entry_price) / entry_price

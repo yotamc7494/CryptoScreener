@@ -5,7 +5,9 @@ import pygame
 import os
 import pickle
 from config import LAYER1_COINS, WHITE, BLACK, GREEN, BINANCE_URL, BAR_X, BAR_Y, BAR_WIDTH, BAR_HEIGHT
+from concurrent.futures import ThreadPoolExecutor
 
+session = requests.Session()
 
 def fetch_binance_ohlc(symbol, interval="1h", limit=1000):
     pair = symbol + "USDT"
@@ -14,7 +16,7 @@ def fetch_binance_ohlc(symbol, interval="1h", limit=1000):
         "interval": interval,
         "limit": limit
     }
-    response = requests.get(BINANCE_URL, params=params)
+    response = session.get(BINANCE_URL, params=params)
     if response.status_code != 200:
         raise ValueError(f"Failed to fetch {pair}: {response.text}")
     raw = response.json()
@@ -28,6 +30,12 @@ def fetch_binance_ohlc(symbol, interval="1h", limit=1000):
     df.set_index("timestamp", inplace=True)
     df = df.astype(float)
     return df
+
+
+def batch_fetch(symbols):
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        results = list(executor.map(fetch_binance_ohlc, symbols))
+    return results
 
 
 def fetch_all_binance_coins():

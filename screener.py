@@ -1,12 +1,13 @@
 # screener.py
 import pygame
 import datetime
-from fetcher import fetch_binance_ohlc
+from fetcher import fetch_binance_ohlc, batch_fetch
 from config import LAYER1_COINS, BAR_HEIGHT, BAR_X, BAR_Y, BAR_WIDTH, WHITE, GREEN, BLACK
 from indicators import add_indicators
 from slack_api import send_slack_alert
 from trader import exit_trade, enter_trade, get_balance, sell_all_non_usdt
 from strategy import apply_strategy
+import time
 
 def run_screener(screen):
     pygame.display.set_caption("Crypto Screener")
@@ -22,16 +23,17 @@ def run_screener(screen):
 
     def fetch_and_process(screen_obj):
         nonlocal in_position, holding_symbol, entry_price
-
         last_run = datetime.datetime.now()
         next_run = (last_run + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         if next_run <= last_run:
             next_run += datetime.timedelta(hours=1)
 
         candidate_entries = []
-
+        fetched_data = batch_fetch(list(LAYER1_COINS.values()))
+        idx = 0
         for name, symbol in LAYER1_COINS.items():
-            df = fetch_binance_ohlc(symbol)
+            df = fetched_data[idx]
+            idx += 1
             if df is None or len(df) < 50:
                 continue
             df = add_indicators(df)
@@ -66,7 +68,6 @@ def run_screener(screen):
             in_position = True
             holding_symbol = symbol
             entry_price = price
-
         return last_run, next_run
 
     last_run, next_run = fetch_and_process(screen)
